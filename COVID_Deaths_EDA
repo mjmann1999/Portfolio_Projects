@@ -1,0 +1,152 @@
+import pandas as pd
+
+df = pd.read_csv('covid_deaths.csv')
+df.head()
+# Convert date column to datetime format
+df['date'] = pd.to_datetime(df['date'])
+# Fill missing values with appropriate defaults or interpolation
+df['total_cases'] = df['total_cases'].fillna(0)
+df['new_cases'] = df['new_cases'].fillna(0)
+df['total_deaths'] = df['total_deaths'].fillna(0)
+df['new_deaths'] = df['new_deaths'].fillna(0)
+# Smooth missing values in new_cases_smoothed and new_deaths_smoothed columns with rolling averages
+df['new_cases_smoothed'] = df['new_cases_smoothed'].fillna(df['new_cases'].rolling(7).mean())
+df['new_deaths_smoothed'] = df['new_deaths_smoothed'].fillna(df['new_deaths'].rolling(7).mean())
+# Fill missing values in remaining columns with mean or appropriate defaults
+df['male_smokers'] = df['male_smokers'].fillna(df['male_smokers'].mean())
+df['handwashing_facilities'] = df['handwashing_facilities'].fillna(0)
+df['hospital_beds_per_thousand'] = df['hospital_beds_per_thousand'].fillna(0)
+df['life_expectancy'] = df['life_expectancy'].fillna(df['life_expectancy'].mean())
+df['human_development_index'] = df['human_development_index'].fillna(df['human_development_index'].mean())
+df['population'] = df['population'].fillna(0)
+# Drop columns with excessive missing values
+df = df.dropna(thresh=len(df) * 0.8, axis=1)
+# Drop rows with missing location values
+df = df.dropna(subset=['location'])
+# Reset the index of the DataFrame
+df = df.reset_index(drop=True)
+# Print the cleaned DataFrame
+print(df.head())
+df.head()
+# Print the number of rows and columns in the DataFrame
+print("Shape of the DataFrame:", df.shape)
+
+# Display the first few rows of the DataFrame
+print("\nHead of the DataFrame:")
+print(df.head())
+
+# Print summary statistics of numerical columns
+print("\nSummary Statistics:")
+print(df.describe())
+
+# Count the number of missing values in each column
+print("\nMissing Value Count:")
+print(df.isnull().sum())
+
+# Count the unique values in each column
+print("\nUnique Value Count:")
+print(df.nunique())
+
+# Count the number of unique countries in the dataset
+print("\nNumber of Unique Countries:", df['location'].nunique())
+
+# Print the list of unique countries
+print("\nUnique Countries:")
+print(df['location'].unique())
+
+# Print the earliest and latest dates in the dataset
+print("\nEarliest Date:", df['date'].min())
+print("Latest Date:", df['date'].max())
+
+# Calculate the total number of cases and deaths
+total_cases = df['total_cases'].sum()
+total_deaths = df['total_deaths'].sum()
+print("\nTotal Cases:", total_cases)
+print("Total Deaths:", total_deaths)
+
+# Calculate the average number of cases and deaths per day
+average_cases_per_day = df['new_cases'].mean()
+average_deaths_per_day = df['new_deaths'].mean()
+print("\nAverage Cases per Day:", average_cases_per_day)
+print("Average Deaths per Day:", average_deaths_per_day)
+# Calculate the percentage of deaths relative to total cases and add it as a new column
+df['death%'] = (df['total_deaths'] / df['total_cases']) * 100
+df['death%'].head
+# Group the data by location and calculate the average death percentage
+death_percent_country = df.groupby('location')['death%'].mean().reset_index()
+
+# Print the new DataFrame
+print(death_percent_country)
+# Fill missing values with appropriate defaults or interpolation
+df['death%'] = df['death%'].fillna(0)
+import matplotlib.pyplot as plt
+
+# Filter the data for rows where iso_code equals "USA"
+usa_data = df[df['iso_code'] == 'USA'].copy()
+
+# Convert 'date' column to datetime format
+usa_data['date'] = pd.to_datetime(usa_data['date'])
+
+# Create a line graph of death% over time
+plt.plot(usa_data['date'], usa_data['death%'])
+plt.xlabel('Date')
+plt.ylabel('Death Percentage')
+plt.title('Death Percentage over Time for USA')
+plt.xticks(rotation=45)
+
+# Add a vertical line at December 14, 2020
+plt.axvline(x=pd.to_datetime('2020-12-14'), color='red', linestyle='--')
+plt.text(pd.to_datetime('2020-12-16'), 5, 'Start of US Vaccinations', color='red')
+
+plt.show()
+# Group the data by location and calculate the total deaths for each country
+country_death_rank = df.groupby('location')['total_deaths'].sum().reset_index()
+
+# Sort the values in descending order to rank the countries based on total deaths
+country_death_rank = country_death_rank.sort_values('total_deaths', ascending=False)
+
+# Remove rows with specific locations
+locations_to_remove = ['World', 'High income', 'Upper middle income', 'Lower middle income', 'Europe', 'North America', 'South America', 'Asia', 'Low income']
+country_death_rank = country_death_rank[~country_death_rank['location'].isin(locations_to_remove)]
+
+# Reset the index
+country_death_rank = country_death_rank.reset_index(drop=True)
+
+# Print the country_death_rank DataFrame
+print(country_death_rank)
+ 
+# Create a copy of the original DataFrame
+new_cases_percentage = df.copy()
+
+# Calculate the new cases as a percentage of population
+new_cases_percentage['new_cases_percentage_population'] = (new_cases_percentage['new_cases'] / new_cases_percentage['population']) * 100
+
+# Print the new_cases_percentage DataFrame
+print(new_cases_percentage)
+import geopandas as gpd
+import matplotlib.pyplot as plt
+
+# Load the shapefile containing the geographic boundaries
+shapefile_path = 'C:/Users/mjman/Downloads/110m_cultural/ne_110m_admin_0_countries.shp'
+world_map = gpd.read_file(shapefile_path)
+
+# Print the column names of the shapefile
+print("Shapefile columns:", world_map.columns)
+
+# Print the column names of the DataFrame
+print("DataFrame columns:", df.columns)
+
+# Merge the shapefile with the total_cases or total_deaths data
+merged_data = world_map.merge(df, left_on='ADMIN', right_on='location', how='left')
+
+# Create the choropleth map
+fig, ax = plt.subplots(figsize=(12, 8))
+merged_data.plot(column='total_cases', cmap='Reds', linewidth=0.8, ax=ax, edgecolor='0.8', legend=True)
+
+# Set the title and axes labels
+ax.set_title('Total COVID-19 Cases by Country')
+ax.set_xlabel('Longitude')
+ax.set_ylabel('Latitude')
+
+# Show the map
+plt.show()
