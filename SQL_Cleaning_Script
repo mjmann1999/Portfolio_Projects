@@ -1,0 +1,100 @@
+-- Cleaning Nashville_housing_data
+
+-- Selecting all rows from the initial cleaned table
+SELECT *
+FROM sql-cleaning-project-391406.Nashville_housing_data.nashville_housing_clean;
+
+-- Standardizing the SaleDate column
+
+-- Deleting rows with misformatted SaleDate values
+DELETE FROM sql-cleaning-project-391406.Nashville_housing_data.nashville_housing_clean
+WHERE SaleDate LIKE '%-%';
+
+-- Parsing and formatting the SaleDate column to a consistent format
+SELECT PARSE_DATE('%b %d, %Y', SaleDate) AS formatted_date
+FROM sql-cleaning-project-391406.Nashville_housing_data.nashville_housing_clean;
+
+-- Updating the SaleDate column with the formatted values
+UPDATE sql-cleaning-project-391406.Nashville_housing_data.nashville_housing_clean
+SET SaleDate = FORMAT_TIMESTAMP('%Y-%m-%d', PARSE_DATE('%b %d, %Y', SaleDate))
+WHERE SaleDate IS NOT NULL;
+
+-- Selecting all rows from the table after standardizing SaleDate
+SELECT *
+FROM sql-cleaning-project-391406.Nashville_housing_data.nashville_housing_clean;
+
+-- Checking for null values in the PropertyAddress column
+SELECT *
+FROM sql-cleaning-project-391406.Nashville_housing_data.nashville_housing_clean
+WHERE PropertyAddress IS NULL;
+
+-- Filling the null values in PropertyAddress column using the max value of non-null PropertyAddress for the same ParcelId
+UPDATE sql-cleaning-project-391406.Nashville_housing_data.nashville_housing_clean AS t1
+SET PropertyAddress = (
+SELECT MAX(t2.PropertyAddress)
+FROM sql-cleaning-project-391406.Nashville_housing_data.nashville_housing_clean AS t2
+WHERE t2.ParcelId = t1.ParcelId
+AND t2.UniqueID_ != t1.UniqueID_
+AND t2.PropertyAddress IS NOT NULL
+)
+WHERE PropertyAddress IS NULL;
+
+-- Adding new columns for address and city
+
+-- Altering the table to add columns for address and city
+ALTER TABLE sql-cleaning-project-391406.Nashville_housing_data.nashville_housing_clean
+ADD COLUMN address STRING,
+ADD COLUMN city STRING;
+
+-- Updating the new columns with the split values from PropertyAddress
+UPDATE sql-cleaning-project-391406.Nashville_housing_data.nashville_housing_clean
+SET
+address = SPLIT(PropertyAddress, ',')[OFFSET(0)],
+city = SPLIT(PropertyAddress, ',')[OFFSET(1)]
+WHERE PropertyAddress IS NOT NULL;
+
+-- Adding new columns for owner_address, owner_city, and owner_state
+
+-- Altering the table to add columns for owner_address, owner_city, and owner_state
+ALTER TABLE sql-cleaning-project-391406.Nashville_housing_data.nashville_housing_clean
+ADD COLUMN owner_address STRING,
+ADD COLUMN owner_city STRING,
+ADD COLUMN owner_state STRING;
+
+-- Updating the new columns with the split values from OwnerAddress
+UPDATE sql-cleaning-project-391406.Nashville_housing_data.nashville_housing_clean
+SET
+owner_address = SPLIT(OwnerAddress, ',')[OFFSET(0)],
+owner_city = SPLIT(OwnerAddress, ',')[OFFSET(1)],
+owner_state = SPLIT(OwnerAddress, ',')[OFFSET(2)]
+WHERE OwnerAddress IS NOT NULL;
+
+-- Converting SoldAsVacant values from Y and N to YES and NO
+UPDATE sql-cleaning-project-391406.Nashville_housing_data.nashville_housing_clean
+SET SoldAsVacant =
+CASE SoldAsVacant
+WHEN 'Y' THEN 'YES'
+WHEN 'N' THEN 'NO'
+ELSE SoldAsVacant
+END
+WHERE SoldAsVacant IN ('Y', 'N');
+
+-- Removing duplicate rows based on selected columns
+
+-- Deleting duplicate rows except the one with the minimum UniqueID_
+DELETE FROM sql-cleaning-project-391406.Nashville_housing_data.nashville_housing_clean
+WHERE UniqueID_ NOT IN (
+SELECT MIN(UniqueID_)
+FROM sql-cleaning-project-391406.Nashville_housing_data.nashville_housing_clean
+GROUP BY ParcelID, LandUse, PropertyAddress, SaleDate, SalePrice, LegalReference, SoldAsVacant, OwnerName, OwnerAddress, Acreage, TaxDistrict, LandValue, BuildingValue, TotalValue, YearBuilt, Bedrooms, FullBath, HalfBath
+);
+
+-- Dropping unused columns from the table
+ALTER TABLE sql-cleaning-project-391406.Nashville_housing_data.nashville_housing_clean
+DROP COLUMN OwnerAddress,
+DROP COLUMN TaxDistrict,
+DROP COLUMN PropertyAddress;
+
+-- Selecting all rows from the final cleaned table
+SELECT *
+FROM sql-cleaning-project-391406.Nashville_housing_data.nashville_housing_clean;
