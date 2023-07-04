@@ -1,0 +1,64 @@
+import requests
+from bs4 import BeautifulSoup
+import pandas as pd
+
+# Scrape data from IMDB website
+url = "https://www.imdb.com/search/title/?release_date=2002-01-01,2013-12-31"
+response = requests.get(url)
+soup = BeautifulSoup(response.text, "html.parser")
+
+# Find movie containers
+movie_containers = soup.find_all("div", class_="lister-item mode-advanced")
+
+# Create empty lists to store movie data
+titles, budgets, ratings, revenues, genres, release_dates = [], [], [], [], [], []
+
+# Set the total number of movies to scrape
+total_movies = 1000
+
+# Loop until the total number of movies is reached
+page = 1
+while len(titles) < total_movies:
+    # Construct the URL for the current page
+    url = f"https://www.imdb.com/search/title/?release_date=2002-01-01,2013-12-31&start={page*50+1}"
+    
+    # Make a request and parse the response
+    response = requests.get(url)
+    soup = BeautifulSoup(response.text, "html.parser")
+    
+    # Find movie containers on the current page
+    movie_containers = soup.find_all("div", class_="lister-item mode-advanced")
+    
+    # Extract data from each movie container
+    for container in movie_containers:
+        titles.append(container.h3.a.text)
+        budgets.append(container.find("span", class_="text-muted text-small").text.strip() or "N/A")
+        ratings.append(container.strong.text)
+        revenues.append(container.find("span", attrs={"name": "nv"})["data-value"])
+        genres.append(container.find("span", class_="genre").text.strip() or "N/A")
+        release_dates.append(container.find("span", class_="lister-item-year text-muted unbold").text.strip() or "N/A")
+        
+        if len(titles) == total_movies:
+            break
+    
+    page += 1
+
+# Create a DataFrame from the lists
+df = pd.DataFrame({"Title": titles, "Budget": budgets, "Rating": ratings, "Revenue": revenues, "Genre": genres, "Release Date": release_dates})
+
+# Save the DataFrame as an Excel file named "movies_2002_2013.xlsx"
+df.to_excel("movies_2002_2013.xlsx", index=False)
+
+# Read the Excel file
+df = pd.read_excel("movies_2002_2013.xlsx")
+
+# Drop duplicates
+df = df.drop_duplicates()
+
+# Clean release date column
+df["Release Date"] = df["Release Date"].str.replace(r"\(|\)", "", regex=True)
+
+# Add content type column
+df["Content Type"] = df["Release Date"].str.contains("–").map({True: "TV Show", False: "Movie"})
+
+# Analyze and visualize data as desired
