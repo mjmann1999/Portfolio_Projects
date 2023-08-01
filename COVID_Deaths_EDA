@@ -2,16 +2,20 @@ import pandas as pd
 
 df = pd.read_csv('covid_deaths.csv')
 df.head()
+
 # Convert date column to datetime format
 df['date'] = pd.to_datetime(df['date'])
+
 # Fill missing values with appropriate defaults or interpolation
 df['total_cases'] = df['total_cases'].fillna(0)
 df['new_cases'] = df['new_cases'].fillna(0)
 df['total_deaths'] = df['total_deaths'].fillna(0)
 df['new_deaths'] = df['new_deaths'].fillna(0)
+
 # Smooth missing values in new_cases_smoothed and new_deaths_smoothed columns with rolling averages
 df['new_cases_smoothed'] = df['new_cases_smoothed'].fillna(df['new_cases'].rolling(7).mean())
 df['new_deaths_smoothed'] = df['new_deaths_smoothed'].fillna(df['new_deaths'].rolling(7).mean())
+
 # Fill missing values in remaining columns with mean or appropriate defaults
 df['male_smokers'] = df['male_smokers'].fillna(df['male_smokers'].mean())
 df['handwashing_facilities'] = df['handwashing_facilities'].fillna(0)
@@ -19,15 +23,20 @@ df['hospital_beds_per_thousand'] = df['hospital_beds_per_thousand'].fillna(0)
 df['life_expectancy'] = df['life_expectancy'].fillna(df['life_expectancy'].mean())
 df['human_development_index'] = df['human_development_index'].fillna(df['human_development_index'].mean())
 df['population'] = df['population'].fillna(0)
+
 # Drop columns with excessive missing values
 df = df.dropna(thresh=len(df) * 0.8, axis=1)
+
 # Drop rows with missing location values
 df = df.dropna(subset=['location'])
+
 # Reset the index of the DataFrame
 df = df.reset_index(drop=True)
+
 # Print the cleaned DataFrame
 print(df.head())
 df.head()
+
 # Print the number of rows and columns in the DataFrame
 print("Shape of the DataFrame:", df.shape)
 
